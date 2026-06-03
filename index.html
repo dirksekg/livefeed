@@ -11,6 +11,7 @@
     height: 100%;
     background: #000;
     overflow: hidden;
+    cursor: none;
   }
 
   iframe {
@@ -20,6 +21,7 @@
     height: 100vh;
     border: 0;
     background: #000;
+    pointer-events: none;
   }
 </style>
 </head>
@@ -54,11 +56,6 @@
 
       Row 3:
       Version | 1
-
-      GOOGLE SHEET PUBLISHING:
-      File > Share > Publish to web
-      Publish the Settings sheet.
-      Copy the Sheet ID from the normal Google Sheet URL and paste it below.
     */
 
     const SHEET_ID = 'PASTE_YOUR_GOOGLE_SHEET_ID_HERE';
@@ -99,7 +96,7 @@
       const videoId = extractYouTubeId(rawUrl) || extractYouTubeId(DEFAULT_YOUTUBE_URL);
 
       return 'https://www.youtube.com/embed/' + videoId +
-        '?autoplay=1&mute=1&playsinline=1&controls=0&rel=0';
+        '?autoplay=1&mute=1&playsinline=1&controls=0&rel=0&disablekb=1&fs=0&modestbranding=1&iv_load_policy=3';
     }
 
     function setPlayer(rawUrl) {
@@ -200,4 +197,3 @@
   </script>
 </body>
 </html>
-
