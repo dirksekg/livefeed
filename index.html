@@ -35,34 +35,10 @@
   </iframe>
 
   <script>
-    /*
-      Live Feed Display - GitHub Pages + Google Sheet
-
-      STAFF WORKFLOW:
-      1. Staff edit the Google Sheet.
-      2. They paste the new YouTube URL into the YouTubeURL value cell.
-      3. They increase the Version number by 1.
-      4. This display page checks once per minute.
-      5. If Version changed, the YouTube iframe updates.
-
-      GOOGLE SHEET FORMAT:
-      Create a sheet/tab named: Settings
-
-      Row 1:
-      Setting | Value
-
-      Row 2:
-      YouTubeURL | https://www.youtube.com/watch?v=IVmL3diwJuw
-
-      Row 3:
-      Version | 1
-    */
-
     const SHEET_ID = '1v_SzMbu0igfZeqW_SwpTjGtai4dvJ6WRkRG-qxlwbTo';
     const SHEET_NAME = 'Settings';
 
     const CHECK_EVERY_MS = 60000;
-
     const DEFAULT_YOUTUBE_URL = 'https://www.youtube.com/watch?v=IVmL3diwJuw';
 
     let currentVersion = null;
@@ -136,7 +112,7 @@
     }
 
     function loadSettings() {
-      if (SHEET_ID === '1v_SzMbu0igfZeqW_SwpTjGtai4dvJ6WRkRG-qxlwbTo') {
+      if (!SHEET_ID || SHEET_ID === 'PASTE_YOUR_GOOGLE_SHEET_ID_HERE') {
         setPlayer(DEFAULT_YOUTUBE_URL);
         return;
       }
