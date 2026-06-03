@@ -19,16 +19,185 @@
     width: 100vw;
     height: 100vh;
     border: 0;
+    background: #000;
   }
 </style>
 </head>
 
 <body>
   <iframe
-    src="https://www.youtube.com/embed/IVmL3diwJuw?autoplay=1&mute=1&playsinline=1&controls=0&rel=0"
+    id="player"
     allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
     allowfullscreen
     referrerpolicy="strict-origin-when-cross-origin">
   </iframe>
+
+  <script>
+    /*
+      Live Feed Display - GitHub Pages + Google Sheet
+
+      STAFF WORKFLOW:
+      1. Staff edit the Google Sheet.
+      2. They paste the new YouTube URL into the YouTubeURL value cell.
+      3. They increase the Version number by 1.
+      4. This display page checks once per minute.
+      5. If Version changed, the YouTube iframe updates.
+
+      GOOGLE SHEET FORMAT:
+      Create a sheet/tab named: Settings
+
+      Row 1:
+      Setting | Value
+
+      Row 2:
+      YouTubeURL | https://www.youtube.com/watch?v=IVmL3diwJuw
+
+      Row 3:
+      Version | 1
+
+      GOOGLE SHEET PUBLISHING:
+      File > Share > Publish to web
+      Publish the Settings sheet.
+      Copy the Sheet ID from the normal Google Sheet URL and paste it below.
+    */
+
+    const SHEET_ID = 'PASTE_YOUR_GOOGLE_SHEET_ID_HERE';
+    const SHEET_NAME = 'Settings';
+
+    const CHECK_EVERY_MS = 60000;
+
+    const DEFAULT_YOUTUBE_URL = 'https://www.youtube.com/watch?v=IVmL3diwJuw';
+
+    let currentVersion = null;
+    let currentEmbedUrl = '';
+
+    function extractYouTubeId(url) {
+      if (!url) return '';
+
+      const text = String(url).trim();
+
+      if (/^[a-zA-Z0-9_-]{11}$/.test(text)) {
+        return text;
+      }
+
+      let match = text.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+      if (match) return match[1];
+
+      match = text.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+      if (match) return match[1];
+
+      match = text.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+      if (match) return match[1];
+
+      match = text.match(/youtube\.com\/live\/([a-zA-Z0-9_-]{11})/);
+      if (match) return match[1];
+
+      return '';
+    }
+
+    function buildEmbedUrl(rawUrl) {
+      const videoId = extractYouTubeId(rawUrl) || extractYouTubeId(DEFAULT_YOUTUBE_URL);
+
+      return 'https://www.youtube.com/embed/' + videoId +
+        '?autoplay=1&mute=1&playsinline=1&controls=0&rel=0';
+    }
+
+    function setPlayer(rawUrl) {
+      const embedUrl = buildEmbedUrl(rawUrl);
+
+      if (embedUrl !== currentEmbedUrl) {
+        currentEmbedUrl = embedUrl;
+        document.getElementById('player').src = embedUrl;
+      }
+    }
+
+    function getCellValue(cell) {
+      if (!cell) return '';
+      if (cell.f !== undefined) return String(cell.f).trim();
+      if (cell.v !== undefined) return String(cell.v).trim();
+      return '';
+    }
+
+    function parseSheetResponse(response) {
+      const settings = {};
+
+      if (!response || !response.table || !response.table.rows) {
+        return settings;
+      }
+
+      response.table.rows.forEach(function(row) {
+        const cells = row.c || [];
+        const key = getCellValue(cells[0]);
+        const value = getCellValue(cells[1]);
+
+        if (key && key !== 'Setting') {
+          settings[key] = value;
+        }
+      });
+
+      return settings;
+    }
+
+    function loadSettings() {
+      if (SHEET_ID === 'PASTE_YOUR_GOOGLE_SHEET_ID_HERE') {
+        setPlayer(DEFAULT_YOUTUBE_URL);
+        return;
+      }
+
+      const callbackName = 'liveFeedCallback_' + Date.now();
+      let script;
+
+      window[callbackName] = function(response) {
+        try {
+          const settings = parseSheetResponse(response);
+          const newUrl = settings.YouTubeURL || DEFAULT_YOUTUBE_URL;
+          const newVersion = settings.Version || '0';
+
+          if (currentVersion === null) {
+            currentVersion = newVersion;
+            setPlayer(newUrl);
+          } else if (newVersion !== currentVersion) {
+            currentVersion = newVersion;
+            setPlayer(newUrl);
+          }
+        } catch (error) {
+          if (!currentEmbedUrl) {
+            setPlayer(DEFAULT_YOUTUBE_URL);
+          }
+        } finally {
+          delete window[callbackName];
+          if (script && script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        }
+      };
+
+      script = document.createElement('script');
+      const cacheBust = Date.now();
+
+      script.src =
+        'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(SHEET_ID) +
+        '/gviz/tq?tqx=out:json;responseHandler:' + callbackName +
+        '&sheet=' + encodeURIComponent(SHEET_NAME) +
+        '&headers=0' +
+        '&cachebust=' + cacheBust;
+
+      script.onerror = function() {
+        if (!currentEmbedUrl) {
+          setPlayer(DEFAULT_YOUTUBE_URL);
+        }
+        delete window[callbackName];
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+      };
+
+      document.body.appendChild(script);
+    }
+
+    loadSettings();
+    setInterval(loadSettings, CHECK_EVERY_MS);
+  </script>
 </body>
 </html>
+
