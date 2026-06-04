@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html, body {
+  html,
+  body {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -21,28 +22,86 @@
     height: 100vh;
     border: 0;
     background: #000;
+  }
+
+  body.lock-player iframe {
     pointer-events: none;
+  }
+
+  #debugPanel {
+    display: none;
+    position: fixed;
+    z-index: 2;
+    right: 12px;
+    bottom: 12px;
+    box-sizing: border-box;
+    width: min(560px, calc(100vw - 24px));
+    max-height: min(520px, calc(100vh - 24px));
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.82);
+    color: #d7f7d7;
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+    cursor: auto;
+  }
+
+  body.debug {
+    cursor: auto;
+  }
+
+  body.debug #debugPanel {
+    display: block;
   }
 </style>
 </head>
 
-<body>
+<body class="lock-player">
   <iframe
     id="player"
     allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
     allowfullscreen
     referrerpolicy="strict-origin-when-cross-origin">
   </iframe>
+  <pre id="debugPanel" aria-live="polite"></pre>
 
   <script>
-    const SHEET_ID = '1v_SzMbu0igfZeqW_SwpTjGtai4dvJ6WRkRG-qxlwbTo';
-    const SHEET_NAME = 'Settings';
-
-    const CHECK_EVERY_MS = 60000;
     const DEFAULT_YOUTUBE_URL = 'https://www.youtube.com/watch?v=IVmL3diwJuw';
+    const LOCK_PLAYER_INTERACTION = true;
 
-    let currentVersion = null;
-    let currentEmbedUrl = '';
+    const params = new URLSearchParams(window.location.search);
+    const DEBUG = params.get('debug') === '1';
+
+    if (!LOCK_PLAYER_INTERACTION || DEBUG) {
+      document.body.classList.remove('lock-player');
+    }
+
+    if (DEBUG) {
+      document.body.classList.add('debug');
+    }
+
+    function debugLog(label, value) {
+      if (!DEBUG) return;
+
+      const panel = document.getElementById('debugPanel');
+      const time = new Date().toLocaleTimeString();
+      const detail = value === undefined ? '' : '\n' + formatDebugValue(value);
+      panel.textContent += '[' + time + '] ' + label + detail + '\n\n';
+      panel.scrollTop = panel.scrollHeight;
+      console.log('[live-feed] ' + label, value);
+    }
+
+    function formatDebugValue(value) {
+      if (typeof value === 'string') return value;
+
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch (error) {
+        return String(value);
+      }
+    }
 
     function extractYouTubeId(url) {
       if (!url) return '';
@@ -65,111 +124,39 @@
       match = text.match(/youtube\.com\/live\/([a-zA-Z0-9_-]{11})/);
       if (match) return match[1];
 
+      match = text.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+      if (match) return match[1];
+
       return '';
     }
 
-    function buildEmbedUrl(rawUrl) {
-      const videoId = extractYouTubeId(rawUrl) || extractYouTubeId(DEFAULT_YOUTUBE_URL);
+    function getRequestedFeed() {
+      return params.get('v') ||
+        params.get('video') ||
+        params.get('youtube') ||
+        params.get('url') ||
+        DEFAULT_YOUTUBE_URL;
+    }
 
-      return 'https://www.youtube.com/embed/' + videoId +
+    function buildEmbedUrl() {
+      const requestedFeed = getRequestedFeed();
+      const requestedVideoId = extractYouTubeId(requestedFeed);
+      const fallbackVideoId = extractYouTubeId(DEFAULT_YOUTUBE_URL);
+      const videoId = requestedVideoId || fallbackVideoId;
+      const embedUrl = 'https://www.youtube.com/embed/' + videoId +
         '?autoplay=1&mute=1&playsinline=1&controls=0&rel=0&disablekb=1&fs=0&modestbranding=1&iv_load_policy=3';
-    }
 
-    function setPlayer(rawUrl) {
-      const embedUrl = buildEmbedUrl(rawUrl);
-
-      if (embedUrl !== currentEmbedUrl) {
-        currentEmbedUrl = embedUrl;
-        document.getElementById('player').src = embedUrl;
-      }
-    }
-
-    function getCellValue(cell) {
-      if (!cell) return '';
-      if (cell.f !== undefined) return String(cell.f).trim();
-      if (cell.v !== undefined) return String(cell.v).trim();
-      return '';
-    }
-
-    function parseSheetResponse(response) {
-      const settings = {};
-
-      if (!response || !response.table || !response.table.rows) {
-        return settings;
-      }
-
-      response.table.rows.forEach(function(row) {
-        const cells = row.c || [];
-        const key = getCellValue(cells[0]);
-        const value = getCellValue(cells[1]);
-
-        if (key && key !== 'Setting') {
-          settings[key] = value;
-        }
+      debugLog('buildEmbedUrl', {
+        requestedFeed: requestedFeed,
+        requestedVideoId: requestedVideoId,
+        fallbackUsed: !requestedVideoId,
+        embedUrl: embedUrl
       });
 
-      return settings;
+      return embedUrl;
     }
 
-    function loadSettings() {
-      if (!SHEET_ID || SHEET_ID === 'PASTE_YOUR_GOOGLE_SHEET_ID_HERE') {
-        setPlayer(DEFAULT_YOUTUBE_URL);
-        return;
-      }
-
-      const callbackName = 'liveFeedCallback_' + Date.now();
-      let script;
-
-      window[callbackName] = function(response) {
-        try {
-          const settings = parseSheetResponse(response);
-          const newUrl = settings.YouTubeURL || DEFAULT_YOUTUBE_URL;
-          const newVersion = settings.Version || '0';
-
-          if (currentVersion === null) {
-            currentVersion = newVersion;
-            setPlayer(newUrl);
-          } else if (newVersion !== currentVersion) {
-            currentVersion = newVersion;
-            setPlayer(newUrl);
-          }
-        } catch (error) {
-          if (!currentEmbedUrl) {
-            setPlayer(DEFAULT_YOUTUBE_URL);
-          }
-        } finally {
-          delete window[callbackName];
-          if (script && script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
-        }
-      };
-
-      script = document.createElement('script');
-      const cacheBust = Date.now();
-
-      script.src =
-        'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(SHEET_ID) +
-        '/gviz/tq?tqx=out:json;responseHandler:' + callbackName +
-        '&sheet=' + encodeURIComponent(SHEET_NAME) +
-        '&headers=0' +
-        '&cachebust=' + cacheBust;
-
-      script.onerror = function() {
-        if (!currentEmbedUrl) {
-          setPlayer(DEFAULT_YOUTUBE_URL);
-        }
-        delete window[callbackName];
-        if (script.parentNode) {
-          script.parentNode.removeChild(script);
-        }
-      };
-
-      document.body.appendChild(script);
-    }
-
-    loadSettings();
-    setInterval(loadSettings, CHECK_EVERY_MS);
+    document.getElementById('player').src = buildEmbedUrl();
   </script>
 </body>
 </html>
