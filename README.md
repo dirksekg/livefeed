@@ -1,65 +1,66 @@
-# Live Feed Display
+# EHS Live Feed
 
-This is a GitHub Pages display page that fills the whole screen with a YouTube live feed.
+This GitHub Pages site displays a YouTube live feed full-screen for building monitors.
 
-The page reads the current YouTube URL from a published Google Sheet once per minute.
-It only updates the iframe when the `Version` value changes.
+Live page:
 
-## Google Sheet setup
+```text
+https://dirksekg.github.io/livefeed/
+```
 
-Create a Google Sheet with a tab named:
+## How To Change The Live Feed
 
-Settings
+Change the URL used in the carousel app. You do not need to edit GitHub, `index.html`, or a Google Sheet.
 
 Use this format:
 
-| Setting | Value |
-|---|---|
-| YouTubeURL | https://www.youtube.com/watch?v=IVmL3diwJuw |
-| Version | 1 |
-
-When staff need to change the feed:
-1. Paste the new YouTube URL in the YouTubeURL value cell.
-2. Increase the Version number by 1.
+```text
+https://dirksekg.github.io/livefeed/?v=YOUTUBE_VIDEO_ID
+```
 
 Example:
-Version 1 becomes Version 2.
 
-## Publish the Google Sheet
+```text
+https://dirksekg.github.io/livefeed/?v=v90fGYoHgco
+```
 
-In Google Sheets:
-1. File
-2. Share
-3. Publish to web
-4. Choose the Settings sheet
-5. Publish
+## How To Find The YouTube Video ID
 
-## Update index.html
+The video ID is the 11-character code in the YouTube link.
 
-Open index.html and replace:
+For this YouTube live URL:
 
-PASTE_YOUR_GOOGLE_SHEET_ID_HERE
+```text
+https://www.youtube.com/live/v90fGYoHgco?si=a4wirkC6-sILHlhs
+```
 
-with the Sheet ID from your Google Sheet URL.
+The video ID is:
 
-Example Google Sheet URL:
+```text
+v90fGYoHgco
+```
 
-https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz/edit
+So the carousel URL should be:
 
-The Sheet ID is:
+```text
+https://dirksekg.github.io/livefeed/?v=v90fGYoHgco
+```
 
-1AbCdEfGhIjKlMnOpQrStUvWxYz
+## Debug Mode
 
-## GitHub Pages setup
+If the feed is not showing correctly, add `&debug=1` to the end of the URL:
 
-Upload index.html to your GitHub repo.
+```text
+https://dirksekg.github.io/livefeed/?v=v90fGYoHgco&debug=1
+```
 
-Then:
-1. Repo Settings
-2. Pages
-3. Deploy from branch
-4. Branch: main
-5. Folder: root
-6. Save
+Debug mode shows what video ID the page found and what YouTube embed URL it created.
 
-Open the GitHub Pages URL in Chrome and enter full screen.
+Remove `&debug=1` before using the URL on public monitors.
+
+## Notes
+
+- The page autoplays muted, which is required for reliable autoplay in Chrome.
+- YouTube controls are hidden as much as YouTube allows.
+- The page has no title, border, margin, scrollbar, or extra visual elements.
+- If the YouTube live feed itself is not active or does not allow embedding, the page may stay black or show a YouTube message.
